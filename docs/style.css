@@ -285,11 +285,36 @@ input[type="date"], input[type="number"] { color-scheme: dark; }
 
 footer {
   margin-top: 3rem; padding-top: 1.5rem; border-top: var(--glass-border);
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: .75rem; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .75rem; text-align: center;
 }
 .footer-text { font-size: .68rem; color: var(--text-muted); letter-spacing: .04em; }
 .footer-text span { color: var(--text-secondary); }
+.social-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem 0 2rem;
+}
+.social-links a {
+  transition: all 0.4s ease;
+  display: flex; align-items: center;
+}
+.social-links svg {
+  width: 26px; height: 26px;
+  fill: #ffffff;
+  opacity: 0.35;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  transition: all 0.3s ease;
+}
+.social-links a:hover svg {
+  opacity: 1;
+  fill: #453766;
+  transform: scale(1.1);
+}
+@media (max-width: 768px) {
+  .social-links svg { width: 20px; height: 20px; }
+}
 
 .chat-page-body { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 .chat-page-layout { display: flex; flex-direction: column; height: 100vh; max-width: 780px; margin: 0 auto; width: 100%; padding: 0 1.5rem; }
