@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <div id="modalApiKey" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalApiTitle">
+    <div class="modal-box">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      </div>
+      <h2 class="modal-title" id="modalApiTitle">Configuration required</h2>
+      <p class="modal-desc">
+        Enter your API key from
+        <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+      </p>
+      <input type="password" id="inputApiKey" class="modal-input" placeholder="AIza…" autocomplete="off" spellcheck="false" aria-label="Google AI API Key" />
+      <button class="modal-btn" onclick="saveApiKey()">Save and continue</button>
+      <p id="apiKeyNote" class="modal-note"></p>
+    </div>
+  </div>
+
+  <div id="modalGoal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalGoalTitle" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h2 class="modal-title" id="modalGoalTitle">Savings goal</h2>
+      <p class="modal-desc">Set your savings target. The system will track your progress towards the deadline.</p>
+      <input type="text"   id="inputGoalName"    class="modal-input modal-input--sm" placeholder="e.g. Summer holiday" maxlength="80" aria-label="Goal name" />
+      <input type="number" id="inputGoalTarget"  class="modal-input modal-input--sm" placeholder="Target amount (£), e.g. 2000" min="1" step="0.01" aria-label="Target amount" />
+      <input type="number" id="inputGoalCurrent" class="modal-input modal-input--sm" placeholder="Already saved (£), e.g. 350 — or 0" min="0" step="0.01" aria-label="Amount already saved" />
+      <input type="date"   id="inputGoalDate"    class="modal-input modal-input--lg" aria-label="Deadline" />
+      <button class="modal-btn" onclick="saveGoal()">Save goal</button>
+      <p id="modalGoalError" class="modal-error"></p>
+    </div>
+  </div>
+
+  <div class="page-wrapper">
+
+    <header>
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <span class="brand-name">Sentinel</span>
+      </div>
+      <div class="header-meta">
+        <div class="header-date" id="currentDate"></div>
+        <a href="chat.html" class="pill-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Chat
+        </a>
+      </div>
+    </header>
+
+    <div class="period-filter anim-2" id="periodFilter" role="group" aria-label="Filter by period">
+      <button class="pill-btn"                    data-period="week"      onclick="changePeriod('week')">Week</button>
+      <button class="pill-btn filter-btn--active" data-period="month"     onclick="changePeriod('month')">Month</button>
+      <button class="pill-btn"                    data-period="quarter"   onclick="changePeriod('quarter')">Quarter</button>
+      <button class="pill-btn"                    data-period="half-year" onclick="changePeriod('half-year')">Half-year</button>
+      <button class="pill-btn"                    data-period="year"      onclick="changePeriod('year')">Year</button>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card type-income anim-2">
+        <div class="card-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 5 5 12"/></svg></div>
+        <div class="card-label">Income</div>
+        <div class="card-value" id="summaryIncome"><span class="skeleton"></span></div>
+      </div>
+      <div class="summary-card type-expense anim-3">
+        <div class="card-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 19 19 12"/></svg></div>
+        <div class="card-label">Expenses</div>
+        <div class="card-value" id="summaryExpenses"><span class="skeleton"></span></div>
+      </div>
+      <div class="summary-card type-savings anim-4">
+        <div class="card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="card-label">Net savings</div>
+        <div class="card-value" id="summarySavings"><span class="skeleton"></span></div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid anim-5">
+      
+      <div class="card-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Spending Distribution</h2>
+        </div>
+        <div class="chart-and-table">
+          <div class="chart-wrapper">
+            <canvas id="spendingChart" aria-label="Spending by category chart" role="img"></canvas>
+          </div>
+          <table class="category-table" aria-label="Spending by category">
+            <tbody id="categoryTableBody">
+              <tr><td colspan="2" style="text-align:center;padding:2rem 0;color:var(--text-muted)"><span class="spinner"></span> Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <div class="card-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Top 5 Expenses</h2>
+          </div>
+          <ul class="top-expenses-list" id="topExpensesList">
+            <li class="top-expenses-loading"><span class="spinner"></span> Loading…</li>
+          </ul>
+        </div>
+
+        <div class="card-panel" id="goalContainer">
+          <div class="panel-header">
+            <h2 class="panel-title">Savings Goal</h2>
+            <div style="display:flex;align-items:center;gap:.6rem;">
+              <span class="panel-badge" id="goalPercentage">—</span>
+              <button class="pill-btn" onclick="openGoalModal()" title="Edit goal">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+            </div>
+          </div>
+          <div class="goal-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+              <div class="goal-name" id="goalName"><span class="skeleton" style="width:160px;height:1.1rem;display:inline-block;"></span></div>
+              <span class="goal-date-inline"><span id="goalDate">—</span></span>
+            </div>
+            <div class="goal-bar-wrap" aria-label="Goal progress">
+              <div class="goal-bar-track"><div class="goal-bar-fill" id="goalProgressBar" style="width:0%"></div></div>
+            </div>
+            <div class="goal-metrics">
+              <div class="goal-metric"><span class="goal-metric-label">Saved</span><span class="goal-metric-value color-green" id="goalCurrentAmount">—</span></div>
+              <div class="goal-metric"><span class="goal-metric-label">Target</span><span class="goal-metric-value color-blue" id="goalTargetAmount">—</span></div>
+              <div class="goal-metric"><span class="goal-metric-label">Remaining</span><span class="goal-metric-value color-red" id="goalRemaining">—</span></div>
+              <div class="goal-metric"><span class="goal-metric-label">Days left</span><span class="goal-metric-value" id="goalDaysLeft">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-panel card-panel--insights anim-6">
+      <div class="panel-header">
+        <h2 class="panel-title">AI Insights</h2>
+      </div>
+      <div id="insightsBody" class="insights-body">
+        <p class="insights-loading"><span class="spinner"></span> Generating insights…</p>
+      </div>
+    </div>
+
+    <footer>
+      <p class="footer-text">© 2026 <span>Sentinel</span></p>
+    </footer>
+
+  </div>
+
+  <div id="globalError" role="alert"></div>
+
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    document.getElementById("currentDate").textContent =
+      new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+    function saveApiKey() {
+      const input = document.getElementById("inputApiKey");
+      const btn   = document.querySelector("#modalApiKey .modal-btn");
+      const note  = document.getElementById("apiKeyNote");
+      const val   = input?.value.trim() ?? "";
+      
+      if (!val) { 
+        input.style.borderColor = "var(--red)"; 
+        input.placeholder = "⚠  Key cannot be empty"; 
+        return; 
+      }
+      if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
+      input.disabled = true;
+      
+      fetch(`${BASE_URL}/api/insights`, { headers: { Authorization: `Bearer ${val}` } })
+        .then(res => { if (res.status === 401 || res.status === 403) throw new Error("Invalid or unauthorised key."); })
+        .catch(err => {
+          const isNetwork = err instanceof TypeError;
+          if (!isNetwork) {
+            input.style.borderColor = "var(--red)";
+            if (note) { note.style.color = "var(--red)"; note.textContent = `⚠ ${err.message}`; }
+            if (btn) { btn.disabled = false; btn.textContent = "Save and continue"; }
+            input.disabled = false;
+            return;
+          }
+          _persistKeyAndContinue(val, input, btn);
+        })
+        .then(ok => { if (ok !== undefined) return; _persistKeyAndContinue(val, input, btn); });
+    }
+
+    function _persistKeyAndContinue(val, input, btn) {
+      localStorage.setItem("sfe_api_key", val);
+      document.getElementById("modalApiKey").style.display = "none";
+      if (btn) { btn.disabled = false; btn.textContent = "Save and continue"; }
+      if (input) input.disabled = false;
+      initDashboard();
+    }
+
+    document.getElementById("inputApiKey").addEventListener("keydown", e => { if (e.key === "Enter") saveApiKey(); });
+
+    function openGoalModal() {
+      const modal = document.getElementById("modalGoal");
+      if (!modal) return;
+      
+      const name    = document.getElementById("goalName")?.textContent?.trim();
+      const total   = document.getElementById("goalTargetAmount")?.dataset?.raw;
+      const current = document.getElementById("goalCurrentAmount")?.dataset?.raw;
+      const date    = document.getElementById("goalDaysLeft")?.dataset?.raw;
+      
+      if (name)    { const el = document.getElementById("inputGoalName");    if (el) el.value = name; }
+      if (total)   { const el = document.getElementById("inputGoalTarget");  if (el) el.value = total; }
+      if (current) { const el = document.getElementById("inputGoalCurrent"); if (el) el.value = current; }
+      if (date)    { const el = document.getElementById("inputGoalDate");    if (el) el.value = date; }
+      
+      const dateInput = document.getElementById("inputGoalDate");
+      if (dateInput && !dateInput.value) {
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        dateInput.min = tomorrow.toISOString().split("T")[0];
+      }
+      
+      const errEl = document.getElementById("modalGoalError");
+      if (errEl) errEl.style.display = "none";
+      
+      modal.style.display = "flex";
+      document.getElementById("inputGoalName")?.focus();
+    }
+
+    async function saveGoal() {
+      const name    = document.getElementById("inputGoalName")?.value.trim();
+      const target  = parseFloat(document.getElementById("inputGoalTarget")?.value);
+      const current = parseFloat(document.getElementById("inputGoalCurrent")?.value || "0");
+      const date    = document.getElementById("inputGoalDate")?.value;
+      const errEl   = document.getElementById("modalGoalError");
+      const btn     = document.querySelector("#modalGoal .modal-btn");
+      
+      const showError = msg => { if (errEl) { errEl.textContent = msg; errEl.style.display = "block"; } };
+      
+      if (!name)                         return showError("⚠ Name cannot be empty.");
+      if (!target || target <= 0)        return showError("⚠ Target must be greater than 0.");
+      if (isNaN(current) || current < 0) return showError("⚠ Amount saved cannot be negative.");
+      if (!date)                         return showError("⚠ Please select a deadline.");
+      if (current >= target)             return showError("⚠ Amount saved cannot exceed the target.");
+      
+      if (errEl) errEl.style.display = "none";
+      if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+      
+      try {
+        const goal = await createGoal(name, target, current, date);
+        document.getElementById("modalGoal").style.display = "none";
+        renderGoal(goal);
+      } catch (e) { 
+        showError(`Error saving: ${e.message}`); 
+      } finally { 
+        if (btn) { btn.disabled = false; btn.textContent = "Save goal"; } 
+      }
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        const m = document.getElementById("modalGoal");
+        if (m && m.style.display !== "none") m.style.display = "none";
+      }
+    });
+    
+    document.getElementById("inputGoalDate")?.addEventListener("keydown", e => { if (e.key === "Enter") saveGoal(); });
+  </script>
+
+</body>
+</html>
