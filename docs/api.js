@@ -4,7 +4,7 @@ const BASE_URL = (() => {
   const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
   return isLocal
     ? `http://${hostname}:8000`
-    : "https://your-deployment-url.example.com";
+    : "https://martasolerebri-sentinel-backend.hf.space";
 })();
 
 const VALID_PERIODS = ["week", "month", "quarter", "half-year", "year"];
