@@ -10,6 +10,9 @@
 
   <div id="chatKeyModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
     <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('chatKeyModal').style.display='none'" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <div class="modal-icon">
         <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
       </div>
@@ -104,9 +107,18 @@
       return div;
     }
 
+    let pendingMessage = null;
+
     async function sendMessage() {
       const text = inputEl.value.trim();
       if (!text) return;
+
+      if (!localStorage.getItem("sfe_api_key")) {
+        pendingMessage = text;
+        document.getElementById("chatKeyModal").style.display = "flex";
+        document.getElementById("chatKeyInput")?.focus();
+        return;
+      }
 
       document.getElementById("chatSuggestions").style.display = "none";
       inputEl.value = "";
@@ -159,27 +171,23 @@
       }, 300);
     }
 
-    function initChat() {
-      if (!localStorage.getItem("sfe_api_key")) {
-        document.getElementById("chatKeyModal").style.display = "flex";
-      } else {
-        showWelcome();
-      }
-    }
-
     document.getElementById("chatKeySave").addEventListener("click", () => {
       const key = document.getElementById("chatKeyInput").value.trim();
       if (!key) { document.getElementById("chatKeyError").textContent = "Please enter a valid API key."; return; }
       localStorage.setItem("sfe_api_key", key);
       document.getElementById("chatKeyModal").style.display = "none";
-      showWelcome();
+      if (pendingMessage) {
+        inputEl.value = pendingMessage;
+        pendingMessage = null;
+        sendMessage();
+      }
     });
 
     document.getElementById("chatKeyInput").addEventListener("keydown", e => {
       if (e.key === "Enter") document.getElementById("chatKeySave").click();
     });
 
-    initChat();
+    showWelcome();
   </script>
 
 </body>
