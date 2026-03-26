@@ -124,9 +124,9 @@ header {
 .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
 .dashboard-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
-  margin-top: 1rem; align-items: start;
+  margin-top: 1rem; align-items: stretch;
 }
-.right-col { display: flex; flex-direction: column; gap: 1rem; align-self: stretch; }
+.right-col { display: flex; flex-direction: column; gap: 1rem; }
 .right-col .card-panel:last-child { flex: 1; }
 
 .summary-card, .card-panel {
