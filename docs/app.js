@@ -1,5 +1,9 @@
-let activePeriod = "month";
-let donutChart   = null;
+let activePeriod  = "month";
+let donutChart    = null;
+let wakeRetries   = 0;
+let wakeTimer     = null;
+const WAKE_MAX_RETRIES = 8;
+const WAKE_DELAY_MS    = 8000;
 
 const PERIOD_LABELS = {
   "week": "Week", "month": "Month", "quarter": "Quarter",
@@ -200,6 +204,17 @@ function renderGoal(goal) {
 async function loadInsights(period) {
   const body = document.getElementById("insightsBody");
   if (!body) return;
+
+  if (!localStorage.getItem("sfe_api_key")) {
+    body.innerHTML = `
+      <div class="insights-unlock">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>AI Insights require a <strong>Google AI API key</strong>.</span>
+        <button class="pill-btn" onclick="showApiKeyModal()">Unlock AI</button>
+      </div>`;
+    return;
+  }
+
   body.innerHTML = `<p class="insights-loading"><span class="spinner"></span> Generating insights…</p>`;
   try {
     const data = await fetchInsights(period);
@@ -223,6 +238,24 @@ function showGlobalError(msg) {
   el.textContent = `⚠ Error: ${msg}`;
   el.style.display = "block";
   setTimeout(() => { el.style.display = "none"; }, 8000);
+}
+
+function showWakeupBanner(attempt) {
+  const banner = document.getElementById("wakeupBanner");
+  if (!banner) return;
+  banner.style.display = "flex";
+  const msg = document.getElementById("wakeupMsg");
+  const retry = document.getElementById("wakeupRetry");
+  if (msg) msg.textContent = attempt === 0
+    ? "The backend is waking up — this can take ~30 seconds on first visit."
+    : "Still waking up, please wait…";
+  if (retry) retry.textContent = `Attempt ${attempt + 1} of ${WAKE_MAX_RETRIES}`;
+}
+
+function hideWakeupBanner() {
+  const banner = document.getElementById("wakeupBanner");
+  if (banner) banner.style.display = "none";
+  if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = null; }
 }
 
 function addChatBubble(text, type) {
@@ -303,25 +336,16 @@ async function sendMessage() {
   }
 }
 
-function checkApiKey() {
-  const key = localStorage.getItem("sfe_api_key");
-  if (!key?.trim()) {
-    const modal = document.getElementById("modalApiKey");
-    if (modal) modal.style.display = "flex";
-    return false;
-  }
-  return true;
-}
-
 async function initDashboard() {
-  if (!checkApiKey()) return;
-
   try {
     const [dashData, summary, topExpenses] = await Promise.all([
       fetchDashboardData(activePeriod),
       fetchSummary(activePeriod),
       fetchTopExpenses(activePeriod, 5),
     ]);
+
+    hideWakeupBanner();
+    wakeRetries = 0;
 
     if (!dashData?.spending_by_category)
       throw new Error("Unexpected response from /api/dashboard.");
@@ -352,8 +376,15 @@ async function initDashboard() {
     loadInsights(activePeriod);
 
   } catch (err) {
-    console.error("Sentinel:", err.message);
-    showGlobalError(err.message);
+    const isWakeup = err instanceof TypeError || err.message.includes("503");
+    if (isWakeup && wakeRetries < WAKE_MAX_RETRIES) {
+      showWakeupBanner(wakeRetries);
+      wakeRetries++;
+      wakeTimer = setTimeout(() => initDashboard(), WAKE_DELAY_MS);
+    } else {
+      console.error("Sentinel:", err.message);
+      showGlobalError(err.message);
+    }
   }
 }
 

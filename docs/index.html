@@ -11,16 +11,18 @@
 
   <div id="modalApiKey" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalApiTitle">
     <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('modalApiKey').style.display='none'" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <div class="modal-icon">
         <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
       </div>
-      <h2 class="modal-title" id="modalApiTitle">Configuration required</h2>
+      <h2 class="modal-title" id="modalApiTitle">Unlock AI features</h2>
       <p class="modal-desc">
-        Enter your API key from
-        <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+        Enter your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> to enable AI Insights and the chat assistant. The dashboard works without it.
       </p>
       <input type="password" id="inputApiKey" class="modal-input" placeholder="AIza…" autocomplete="off" spellcheck="false" aria-label="Google AI API Key" />
-      <button class="modal-btn" onclick="saveApiKey()">Save and continue</button>
+      <button class="modal-btn" onclick="saveApiKey()">Unlock</button>
       <p id="apiKeyNote" class="modal-note"></p>
     </div>
   </div>
@@ -58,6 +60,15 @@
         </a>
       </div>
     </header>
+
+    <div id="wakeupBanner" class="wakeup-banner" role="status" aria-live="polite">
+      <span class="spinner"></span>
+      <div class="wakeup-text">
+        <strong>Starting up</strong>
+        <span id="wakeupMsg">The backend is waking up — this can take ~30 seconds on first visit.</span>
+      </div>
+      <span id="wakeupRetry" class="wakeup-retry"></span>
+    </div>
 
     <div class="period-filter anim-2" id="periodFilter" role="group" aria-label="Filter by period">
       <button class="pill-btn"                    data-period="week"      onclick="changePeriod('week')">Week</button>
@@ -180,20 +191,25 @@
     document.getElementById("currentDate").textContent =
       new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
+    function showApiKeyModal() {
+      const modal = document.getElementById("modalApiKey");
+      if (modal) { modal.style.display = "flex"; document.getElementById("inputApiKey")?.focus(); }
+    }
+
     function saveApiKey() {
       const input = document.getElementById("inputApiKey");
       const btn   = document.querySelector("#modalApiKey .modal-btn");
       const note  = document.getElementById("apiKeyNote");
       const val   = input?.value.trim() ?? "";
-      
-      if (!val) { 
-        input.style.borderColor = "var(--red)"; 
-        input.placeholder = "⚠  Key cannot be empty"; 
-        return; 
+
+      if (!val) {
+        input.style.borderColor = "var(--red)";
+        input.placeholder = "⚠  Key cannot be empty";
+        return;
       }
       if (btn) { btn.disabled = true; btn.textContent = "Verifying…"; }
       input.disabled = true;
-      
+
       fetch(`${BASE_URL}/api/insights`, { headers: { Authorization: `Bearer ${val}` } })
         .then(res => { if (res.status === 401 || res.status === 403) throw new Error("Invalid or unauthorised key."); })
         .catch(err => {
@@ -201,21 +217,21 @@
           if (!isNetwork) {
             input.style.borderColor = "var(--red)";
             if (note) { note.style.color = "var(--red)"; note.textContent = `⚠ ${err.message}`; }
-            if (btn) { btn.disabled = false; btn.textContent = "Save and continue"; }
+            if (btn) { btn.disabled = false; btn.textContent = "Unlock"; }
             input.disabled = false;
             return;
           }
-          _persistKeyAndContinue(val, input, btn);
+          _persistKeyAndLoadAI(val, input, btn);
         })
-        .then(ok => { if (ok !== undefined) return; _persistKeyAndContinue(val, input, btn); });
+        .then(ok => { if (ok !== undefined) return; _persistKeyAndLoadAI(val, input, btn); });
     }
 
-    function _persistKeyAndContinue(val, input, btn) {
+    function _persistKeyAndLoadAI(val, input, btn) {
       localStorage.setItem("sfe_api_key", val);
       document.getElementById("modalApiKey").style.display = "none";
-      if (btn) { btn.disabled = false; btn.textContent = "Save and continue"; }
+      if (btn) { btn.disabled = false; btn.textContent = "Unlock"; }
       if (input) input.disabled = false;
-      initDashboard();
+      loadInsights(activePeriod);
     }
 
     document.getElementById("inputApiKey").addEventListener("keydown", e => { if (e.key === "Enter") saveApiKey(); });
