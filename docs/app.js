@@ -2,7 +2,7 @@ let activePeriod  = "month";
 let donutChart    = null;
 let wakeRetries   = 0;
 let wakeTimer     = null;
-const WAKE_MAX_RETRIES = 8;
+const WAKE_MAX_RETRIES = 15;
 const WAKE_DELAY_MS    = 8000;
 
 const PERIOD_LABELS = {
@@ -258,6 +258,23 @@ function hideWakeupBanner() {
   if (wakeTimer) { clearTimeout(wakeTimer); wakeTimer = null; }
 }
 
+function showWakeupStalled() {
+  const banner = document.getElementById("wakeupBanner");
+  if (!banner) return;
+  banner.style.display = "flex";
+  const msg = document.getElementById("wakeupMsg");
+  const retryEl = document.getElementById("wakeupRetry");
+  if (msg) msg.textContent = "The backend is taking longer than usual to start.";
+  if (retryEl) {
+    retryEl.innerHTML = "";
+    const btn = document.createElement("button");
+    btn.className = "pill-btn";
+    btn.textContent = "Retry";
+    btn.onclick = () => { wakeRetries = 0; initDashboard(); };
+    retryEl.appendChild(btn);
+  }
+}
+
 function addChatBubble(text, type) {
   const msgs = document.getElementById("chatMensajes");
   if (!msgs) return null;
@@ -379,10 +396,14 @@ async function initDashboard() {
     const httpStatus = err.message.match(/HTTP (\d+)/);
     const is5xx = httpStatus && parseInt(httpStatus[1]) >= 500;
     const isWakeup = err instanceof TypeError || is5xx;
-    if (isWakeup && wakeRetries < WAKE_MAX_RETRIES) {
-      showWakeupBanner(wakeRetries);
-      wakeRetries++;
-      wakeTimer = setTimeout(() => initDashboard(), WAKE_DELAY_MS);
+    if (isWakeup) {
+      if (wakeRetries < WAKE_MAX_RETRIES) {
+        showWakeupBanner(wakeRetries);
+        wakeRetries++;
+        wakeTimer = setTimeout(() => initDashboard(), WAKE_DELAY_MS);
+      } else {
+        showWakeupStalled();
+      }
     } else {
       console.error("Sentinel:", err.message);
       showGlobalError(err.message);
