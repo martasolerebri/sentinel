@@ -376,7 +376,9 @@ async function initDashboard() {
     loadInsights(activePeriod);
 
   } catch (err) {
-    const isWakeup = err instanceof TypeError || err.message.includes("503");
+    const httpStatus = err.message.match(/HTTP (\d+)/);
+    const is5xx = httpStatus && parseInt(httpStatus[1]) >= 500;
+    const isWakeup = err instanceof TypeError || is5xx;
     if (isWakeup && wakeRetries < WAKE_MAX_RETRIES) {
       showWakeupBanner(wakeRetries);
       wakeRetries++;
